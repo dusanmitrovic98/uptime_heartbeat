@@ -1,0 +1,57 @@
+@layer base {
+  html {
+    --cortex: #00ff99;
+    --cortex-bg: #181c1f;
+    --cortex-panel: #23272b;
+  }
+}
+
+@layer utilities {
+  .text-cortex {
+    color: var(--cortex) !important;
+  }
+  .bg-cortexBg {
+    background-color: var(--cortex-bg) !important;
+  }
+  .bg-cortexPanel {
+    background-color: var(--cortex-panel) !important;
+  }
+  .border-cortex\/30 {
+    border-color: rgb(0 255 153 / 0.3) !important;
+  }
+  .border-cortex\/40 {
+    border-color: rgb(0 255 153 / 0.4) !important;
+  }
+  .bg-cortex {
+    background-color: var(--cortex) !important;
+  }
+  .hover\:bg-cortex\/80:hover {
+    background-color: #00cc77 !important;
+  }
+}
+
+/* Extra polish for focus, accessibility, and spacing */
+input:focus, button:focus {
+  outline: 2px solid var(--cortex);
+  outline-offset: 2px;
+}
+
+#alert {
+  animation: fadein 0.3s;
+}
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 0.5rem;
+  }
+  main {
+    padding: 0.5rem;
+  }
+  table {
+    font-size: 0.95rem;
+  }
+}

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Pinger Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dark bg-cortexBg min-h-screen text-gray-200 font-sans p-8">
+  <main class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-cortex">Pinger Dashboard</h1>
+
+    <form id="addForm" class="flex flex-col md:flex-row gap-4 items-center bg-cortexPanel p-6 rounded-lg mb-6 border border-cortex/30" aria-label="Add URL to monitor">
+      <label for="url" class="sr-only">URL</label>
+      <input type="url" id="url" name="url" placeholder="https://example.com" required autocomplete="off" class="flex-1 bg-cortexBg border border-cortex/40 rounded px-4 py-2 text-cortex focus:outline-none focus:ring-2 focus:ring-cortex" />
+      <label for="interval" class="sr-only">Interval (seconds)</label>
+      <input type="number" id="interval" name="interval" placeholder="Interval (sec)" min="10" value="60" class="w-40 bg-cortexBg border border-cortex/40 rounded px-4 py-2 text-cortex focus:outline-none focus:ring-2 focus:ring-cortex" />
+      <button type="submit" class="bg-cortex text-black font-bold px-6 py-2 rounded hover:bg-cortex/80 transition">Add URL</button>
+    </form>
+
+    <div id="alert" class="hidden mb-4 p-3 rounded bg-red-600 text-white text-center"></div>
+    <div id="loading" class="hidden mb-4 text-cortex text-center">Loading...</div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full bg-cortexPanel rounded-lg border border-cortex/30">
+        <thead>
+          <tr class="text-cortex text-lg border-b border-cortex/40">
+            <th class="px-4 py-3 text-left">URL</th>
+            <th class="px-4 py-3 text-left">Interval (sec)</th>
+            <th class="px-4 py-3 text-left">Action</th>
+          </tr>
+        </thead>
+        <tbody id="urlList"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    let urlIntervals = {};
+    let urlCountdowns = {};
+    let urlTimers = {};
+    let socket;
+
+    function showAlert(msg) {
+      const alert = document.getElementById('alert');
+      alert.textContent = msg;
+      alert.classList.remove('hidden');
+      setTimeout(() => alert.classList.add('hidden'), 4000);
+    }
+    function showLoading(show) {
+      document.getElementById('loading').classList.toggle('hidden', !show);
+    }
+
+    async function loadUrls() {
+      showLoading(true);
+      try {
+        const res = await fetch('/api/urls');
+        if (!res.ok) throw new Error('Failed to load URLs');
+        const urls = await res.json();
+        const tbody = document.getElementById('urlList');
+        tbody.innerHTML = '';
+        urlIntervals = {};
+        urlCountdowns = {};
+        urls.forEach(u => {
+          urlIntervals[u.url] = parseInt(u.interval);
+          urlCountdowns[u.url] = urlIntervals[u.url];
+          const row = document.createElement('tr');
+          row.className = "hover:bg-cortex/10 transition";
+          row.innerHTML = `
+            <td class='px-4 py-2 align-top'>
+              <div class="relative flex flex-col items-start gap-1 min-h-[40px]">
+                <span class="block font-mono text-sm text-cortex mb-1" tabindex="0">${u.url}</span>
+                <div id="countdown-wrap-${btoa(u.url)}" class="relative flex items-center min-h-[28px]">
+                  <span id="countdown-${btoa(u.url)}" class="relative z-20 text-xs text-cortex font-mono w-full text-center block"></span>
+                  <span id="ping-anim-${btoa(u.url)}" class="absolute inset-0 flex items-center justify-center pointer-events-none" style="z-index:10;"></span>
+                </div>
+                <div id="viz-${btoa(u.url)}" class="flex gap-1 mt-1" aria-label="Ping history for ${u.url}"></div>
+              </div>
+            </td>
+            <td class='px-4 py-2 align-top'>${u.interval}</td>
+            <td class='px-4 py-2 align-top'><button onclick="removeUrl('${u.url}')" class='bg-cortex text-black font-bold px-4 py-1 rounded hover:bg-cortex/80 transition' aria-label='Delete ${u.url}'>Delete</button></td>
+          `;
+          tbody.appendChild(row);
+        });
+        // Do NOT call renderPingHistory(urls) here
+        startCountdowns(urls);
+        renderPingHistory(urls);
+      } catch (e) {
+        showAlert(e.message);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function startCountdowns(urls) {
+      Object.values(urlTimers).forEach(timer => clearInterval(timer));
+      urlTimers = {};
+      urls.forEach(u => {
+        const url = u.url;
+        const countdownDiv = document.getElementById(`countdown-${btoa(url)}`);
+        if (!countdownDiv) return;
+        countdownDiv.textContent = `Next ping in: ${urlCountdowns[url]}s`;
+        urlTimers[url] = setInterval(() => {
+          urlCountdowns[url] = Math.max(0, urlCountdowns[url] - 1);
+          countdownDiv.textContent = `Next ping in: ${urlCountdowns[url]}s`;
+        }, 1000);
+      });
+    }
+
+    async function renderPingHistory(urls) {
+      try {
+        const res = await fetch('/api/ping_history');
+        if (!res.ok) throw new Error('Failed to load ping history');
+        const history = await res.json();
+        urls.forEach(u => {
+          const viz = document.getElementById(`viz-${btoa(u.url)}`);
+          if (!viz) return;
+          viz.innerHTML = '';
+          const pings = (history[u.url] || []).filter(p => typeof p === 'object' && p !== null && 'ok' in p && 'ts' in p);
+          // Show most recent on the right, oldest on the left
+          for (let i = 0; i < 20; i++) {
+            // pings.length-1 is most recent, 0 is oldest
+            const ping = pings[pings.length - 20 + i]; // leftmost is oldest, rightmost is most recent
+            let dot;
+            if (ping) {
+              dot = document.createElement('span');
+              dot.className = ping.ok
+                ? 'inline-block w-3 h-3 rounded-full bg-cortex opacity-90'
+                : 'inline-block w-3 h-3 rounded-full bg-red-600 opacity-90';
+              dot.title = new Date(ping.ts * 1000).toLocaleString() + (ping.ok ? '' : ' (failed)');
+            } else {
+              dot = document.createElement('span');
+              dot.className = 'inline-block w-3 h-3 rounded-full bg-gray-700 opacity-30';
+            }
+            viz.appendChild(dot);
+          }
+        });
+      } catch (e) {
+        showAlert(e.message);
+      }
+    }
+
+    function triggerPingAnimation(url) {
+      const animContainer = document.getElementById(`ping-anim-${btoa(url)}`);
+      if (!animContainer) return;
+      let anim = document.createElement('div');
+      anim.className = 'w-8 h-8 rounded-full border-4 border-cortex animate-ping z-10 pointer-events-none';
+      // Manually set position (example: 30px right, 10px up from center)
+      anim.style.position = "absolute";
+      anim.style.left = "calc(50% + 30px)";
+      anim.style.top = "calc(50% - 10px)";
+      anim.style.transform = "translate(-50%, -50%)";
+      animContainer.appendChild(anim);
+      setTimeout(() => anim.remove(), 700);
+      // Reset countdown
+      urlCountdowns[url] = urlIntervals[url];
+      const countdownDiv = document.getElementById(`countdown-${btoa(url)}`);
+      if (countdownDiv) countdownDiv.textContent = `Next ping in: ${urlCountdowns[url]}s`;
+    }
+
+    function setupSocket() {
+      if (socket) return;
+      socket = io();
+      socket.on('pinged', data => {
+        if (data && data.url) {
+          triggerPingAnimation(data.url);
+          // Only refresh ping history for this URL if not already updating
+          renderPingHistory([{ url: data.url }]);
+        }
+      });
+    }
+
+    async function removeUrl(url) {
+      try {
+        const res = await fetch('/api/urls', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        if (!res.ok) throw new Error('Failed to delete URL');
+        loadUrls();
+      } catch (e) {
+        showAlert(e.message);
+      }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const url = document.getElementById('url').value.trim();
+      const interval = document.getElementById('interval').value;
+      if (!url) {
+        showAlert('Please enter a valid URL.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/urls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, interval })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error('Failed to add URL');
+        e.target.reset();
+        await loadUrls();
+      } catch (e) {
+        showAlert(e.message);
+      }
+    });
+
+    loadUrls();
+    setupSocket();
+  </script>
+</body>
+</html>

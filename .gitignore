@@ -136,3 +136,4 @@ cython_debug/
 Thumbs.db
 
 ping_history.json
+flask_session/

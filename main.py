@@ -1,5 +1,6 @@
 import threading
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
+from flask_session import Session
 from threading import Thread
 import time
 import requests
@@ -10,6 +11,9 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'changeme')
+Session(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 DATA_FILE = "data.json"
@@ -132,6 +136,35 @@ def ping_history():
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory('static', filename)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    from dotenv import load_dotenv
+    load_dotenv()
+    error = None
+    if request.method == "POST":
+        secret_key = request.form.get("secret_key")
+        expected = os.getenv("SECRET_KEY", "changeme")
+        if secret_key == expected:
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+        else:
+            error = "Invalid secret key."
+    return render_template("login.html", error=error)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+@app.before_request
+def require_login():
+    if request.endpoint not in ("login", "static_files") and not session.get("logged_in"):
+        return redirect(url_for("login"))
+
+@app.route("/export_data")
+def export_data():
+    return send_from_directory('.', DATA_FILE, as_attachment=True)
 
 if __name__ == "__main__":
     import sys

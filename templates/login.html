@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Pinger Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cortex: '#7f5af0',
+              cortexBg: '#16161a',
+              cortexPanel: '#242629',
+            },
+          },
+        },
+        darkMode: 'class',
+      }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dark bg-cortexBg min-h-screen text-gray-200 font-sans flex items-center justify-center p-8">
+    <main class="w-full max-w-md mx-auto">
+        <div class="bg-cortexPanel rounded-lg p-8 shadow-lg border border-cortex/30">
+            <h1 class="text-2xl font-bold mb-6 text-center text-cortex">Enter Secret Key</h1>
+            {% if error %}
+                <div class="mb-4 text-red-400 text-center">{{ error }}</div>
+            {% endif %}
+            <form method="post">
+                <input type="password" name="secret_key" placeholder="Secret Key" required autofocus
+                       class="w-full px-4 py-2 mb-4 rounded bg-cortexBg border border-cortex/40 text-cortex focus:outline-none focus:ring-2 focus:ring-cortex">
+                <button type="submit" class="w-full bg-cortex text-black font-bold py-2 rounded hover:bg-cortex/80 transition">Connect</button>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

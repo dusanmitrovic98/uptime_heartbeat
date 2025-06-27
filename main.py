@@ -7,10 +7,9 @@ import requests
 import json
 import os
 from flask_socketio import SocketIO, emit
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'changeme')
 Session(app)

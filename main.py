@@ -13,7 +13,8 @@ app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'changeme')
 Session(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Use threading mode for SocketIO to allow Ctrl+C to work
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 DATA_FILE = "data.json"
 PING_HISTORY_FILE = "ping_history.json"
@@ -143,7 +144,7 @@ def login():
     error = None
     if request.method == "POST":
         secret_key = request.form.get("secret_key")
-        expected = os.getenv("SECRET_KEY", "changeme")
+        expected = os.getenv("SECRET_KEY")
         if secret_key == expected:
             session["logged_in"] = True
             return redirect(url_for("index"))
@@ -167,8 +168,6 @@ def export_data():
 if __name__ == "__main__":
     import sys
     from dotenv import load_dotenv
-    import eventlet
-    import eventlet.wsgi
     # 1. Check for --port argument
     port = None
     for i, arg in enumerate(sys.argv):

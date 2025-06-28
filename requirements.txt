@@ -3,4 +3,3 @@ requests
 python-dotenv
 flask-socketio
 flask-session
-eventlet

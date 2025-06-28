@@ -3,19 +3,22 @@ eventlet.monkey_patch()
 
 import threading
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
-from flask_session import Session
+# from flask_session import Session
 from threading import Thread
 import time
 import requests
 import json
 import os
 from flask_socketio import SocketIO, emit
+from database import db  # <-- Import the database layer
+import asyncio  # <-- For running async DB calls
 
 app = Flask(__name__)
 
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'changeme')
-Session(app)
+# app.config['SESSION_TYPE'] = 'filesystem'
+# Session(app)
+# Use Flask's default session for Windows compatibility
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 # Use eventlet mode for SocketIO for production and real-time updates
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
@@ -27,19 +30,14 @@ last_ping = {}
 
 # --- Data helpers ---
 def load_data():
-    with DATA_LOCK:
-        if not os.path.exists(DATA_FILE):
-            return []
-        try:
-            with open(DATA_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return []
+    # Load all URLs from MongoDB
+    return asyncio.run(db.find("urls"))
 
 def save_data(data):
-    with DATA_LOCK:
-        with open(DATA_FILE, "w") as f:
-            json.dump(data, f, indent=2)
+    # Replace all documents in 'urls' collection with new data
+    asyncio.run(db.db["urls"].delete_many({}))
+    if data:
+        asyncio.run(db.db["urls"].insert_many(data))
 
 def load_ping_history():
     with DATA_LOCK:

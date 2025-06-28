@@ -112,31 +112,40 @@ def index():
 
 @app.route("/api/urls", methods=["GET", "POST", "DELETE"])
 def urls():
-    data = load_data()
+    try:
+        data = load_data()
+    except Exception as e:
+        return jsonify(success=False, error="Failed to load URLs: {}".format(str(e))), 500
     if request.method == "POST":
-        new_url = request.json.get("url")
-        interval = int(request.json.get("interval", 60))
-        found = False
-        for d in data:
-            if d["url"] == new_url:
-                d["interval"] = interval
-                found = True
-                break
-        if not found and new_url:
-            data.append({"url": new_url, "interval": interval})
-        save_data(data)
-        return jsonify(success=True)
+        try:
+            new_url = request.json.get("url")
+            interval = int(request.json.get("interval", 60))
+            found = False
+            for d in data:
+                if d["url"] == new_url:
+                    d["interval"] = interval
+                    found = True
+                    break
+            if not found and new_url:
+                data.append({"url": new_url, "interval": interval})
+            save_data(data)
+            return jsonify(success=True)
+        except Exception as e:
+            return jsonify(success=False, error="Failed to add URL: {}".format(str(e))), 500
 
     elif request.method == "DELETE":
-        url_to_remove = request.json.get("url")
-        data = [d for d in data if d["url"] != url_to_remove]
-        save_data(data)
-        # Remove ping history for deleted url
-        history = load_ping_history()
-        if url_to_remove in history:
-            del history[url_to_remove]
-            save_ping_history(history)
-        return jsonify(success=True)
+        try:
+            url_to_remove = request.json.get("url")
+            data = [d for d in data if d["url"] != url_to_remove]
+            save_data(data)
+            # Remove ping history for deleted url
+            history = load_ping_history()
+            if url_to_remove in history:
+                del history[url_to_remove]
+                save_ping_history(history)
+            return jsonify(success=True)
+        except Exception as e:
+            return jsonify(success=False, error="Failed to delete URL: {}".format(str(e))), 500
 
     return jsonify(data)
 

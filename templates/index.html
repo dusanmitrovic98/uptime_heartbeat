@@ -64,8 +64,12 @@
       showLoading(true);
       try {
         const res = await fetch('/api/urls');
-        if (!res.ok) throw new Error('Failed to load URLs');
-        const urls = await res.json();
+        const data = await res.json();
+        if (!res.ok || (Array.isArray(data) === false && data.success === false)) {
+          let msg = (data && data.error) ? data.error : 'Failed to load URLs';
+          throw new Error(msg);
+        }
+        const urls = Array.isArray(data) ? data : [];
         const tbody = document.getElementById('urlList');
         tbody.innerHTML = '';
         urlIntervals = {};
@@ -91,11 +95,10 @@
           `;
           tbody.appendChild(row);
         });
-        // Do NOT call renderPingHistory(urls) here
         startCountdowns(urls);
         renderPingHistory(urls);
       } catch (e) {
-        showAlert(e.message);
+        showAlert(e.message || 'Failed to load URLs');
       } finally {
         showLoading(false);
       }
@@ -180,16 +183,23 @@
     }
 
     async function removeUrl(url) {
+      showLoading(true);
       try {
         const res = await fetch('/api/urls', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-        if (!res.ok) throw new Error('Failed to delete URL');
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          let msg = (data && data.error) ? data.error : 'Failed to delete URL';
+          throw new Error(msg);
+        }
         loadUrls();
       } catch (e) {
-        showAlert(e.message);
+        showAlert(e.message || 'Failed to delete URL');
+      } finally {
+        showLoading(false);
       }
     }
 
@@ -201,6 +211,7 @@
         showAlert('Please enter a valid URL.');
         return;
       }
+      showLoading(true);
       try {
         const res = await fetch('/api/urls', {
           method: 'POST',
@@ -208,11 +219,16 @@
           body: JSON.stringify({ url, interval })
         });
         const data = await res.json();
-        if (!res.ok || !data.success) throw new Error('Failed to add URL');
+        if (!res.ok || !data.success) {
+          let msg = (data && data.error) ? data.error : 'Failed to add URL';
+          throw new Error(msg);
+        }
         e.target.reset();
         await loadUrls();
       } catch (e) {
-        showAlert(e.message);
+        showAlert(e.message || 'Failed to add URL');
+      } finally {
+        showLoading(false);
       }
     });
 

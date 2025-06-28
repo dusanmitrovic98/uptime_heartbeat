@@ -155,7 +155,6 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
 @app.before_request
 def require_login():
     if request.endpoint not in ("login", "static_files") and not session.get("logged_in"):
@@ -168,6 +167,8 @@ def export_data():
 if __name__ == "__main__":
     import sys
     from dotenv import load_dotenv
+    import eventlet
+    import eventlet.wsgi
     # 1. Check for --port argument
     port = None
     for i, arg in enumerate(sys.argv):

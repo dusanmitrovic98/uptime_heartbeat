@@ -18,19 +18,20 @@ logger.setLevel(logging.INFO)
 class DataAccessLayer:
     _instance = None
     
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self):
+    def __init__(self, db_name: Optional[str] = None):
         if self._initialized:
             return
         self._initialized = True
         
         # Initialize MongoDB connection
         self.mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        self.db_name = db_name or os.getenv("MONGO_DB_NAME", "test")
         self.client = None
         self.db = None
         
@@ -40,7 +41,7 @@ class DataAccessLayer:
         # In-memory cache
         self.cache = {}
         self.cache_ttl = 60  # seconds
-        
+    
     def _get_cipher(self):
         """Initialize encryption cipher"""
         key = os.getenv("ENCRYPTION_KEY")
@@ -54,8 +55,8 @@ class DataAccessLayer:
         """Establish database connection"""
         if self.client is None:
             self.client = AsyncIOMotorClient(self.mongo_uri)
-            self.db = self.client.bot_ecosystem
-            logger.info("Database connection established")
+            self.db = self.client[self.db_name]
+            logger.info(f"Database connection established (db: {self.db_name})")
             await self.initialize_indexes()
     
     async def close(self):
@@ -194,4 +195,5 @@ class DataAccessLayer:
             logger.error(f"Index initialization failed: {e}")
 
 # Global database instance
-db = DataAccessLayer()
+# To use a custom db name: db = DataAccessLayer(db_name="mydb")
+db = DataAccessLayer(db_name="uptime_heartbeat_monitor")

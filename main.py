@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import threading
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 from flask_session import Session
@@ -13,8 +16,8 @@ app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'changeme')
 Session(app)
-# Use threading mode for SocketIO to allow Ctrl+C to work
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+# Use eventlet mode for SocketIO for production and real-time updates
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 DATA_FILE = "data.json"
 PING_HISTORY_FILE = "ping_history.json"

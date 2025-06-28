@@ -28,16 +28,27 @@ DATA_LOCK = threading.Lock()
 
 last_ping = {}
 
+# --- Asyncio event loop for DB ---
+# Start a background event loop for async DB calls from sync Flask routes
+asyncio_loop = asyncio.new_event_loop()
+def start_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+threading.Thread(target=start_loop, args=(asyncio_loop,), daemon=True).start()
+
 # --- Data helpers ---
 def load_data():
-    # Load all URLs from MongoDB
-    return asyncio.run(db.find("urls"))
+    # Load all URLs from MongoDB using background event loop
+    future = asyncio.run_coroutine_threadsafe(db.find("urls"), asyncio_loop)
+    return future.result()
 
 def save_data(data):
-    # Replace all documents in 'urls' collection with new data
-    asyncio.run(db.db["urls"].delete_many({}))
+    # Replace all documents in 'urls' collection with new data using background event loop
+    future = asyncio.run_coroutine_threadsafe(db.db["urls"].delete_many({}), asyncio_loop)
+    future.result()
     if data:
-        asyncio.run(db.db["urls"].insert_many(data))
+        future = asyncio.run_coroutine_threadsafe(db.db["urls"].insert_many(data), asyncio_loop)
+        future.result()
 
 def load_ping_history():
     with DATA_LOCK:

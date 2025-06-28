@@ -84,7 +84,10 @@ def ping_loop():
                 last_ping[url] = now  # Update BEFORE ping to prevent double pings
                 ping_success = True
                 try:
-                    r = requests.get(url, timeout=10)
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                    }
+                    r = requests.get(url, timeout=60, headers=headers)
                     print(f"Pinged {url}: {r.status_code}")
                     ping_success = (r.status_code == 200)
                 except Exception as e:

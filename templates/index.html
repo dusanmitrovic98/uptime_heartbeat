@@ -82,7 +82,7 @@
           row.innerHTML = `
             <td class='px-4 py-2 align-top'>
               <div class="relative flex flex-col items-start gap-1 min-h-[40px]">
-                <span class="block font-mono text-sm text-cortex mb-1" tabindex="0">${u.url}</span>
+                <a href="${u.url}" target="_blank" rel="noopener noreferrer" class="block font-mono text-sm text-cortex mb-1 underline hover:text-cortex/80" tabindex="0">${u.url}</a>
                 <div id="countdown-wrap-${btoa(u.url)}" class="relative flex items-center min-h-[28px]">
                   <span id="countdown-${btoa(u.url)}" class="relative z-20 text-xs text-cortex font-mono w-full text-center block"></span>
                   <span id="ping-anim-${btoa(u.url)}" class="absolute inset-0 flex items-center justify-center pointer-events-none" style="z-index:10;"></span>

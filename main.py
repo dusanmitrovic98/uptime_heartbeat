@@ -44,11 +44,8 @@ def load_data():
 
 def save_data(data):
     # Replace all documents in 'urls' collection with new data using background event loop
-    future = asyncio.run_coroutine_threadsafe(db.db["urls"].delete_many({}), asyncio_loop)
+    future = asyncio.run_coroutine_threadsafe(db.replace_all("urls", data), asyncio_loop)
     future.result()
-    if data:
-        future = asyncio.run_coroutine_threadsafe(db.db["urls"].insert_many(data), asyncio_loop)
-        future.result()
 
 def load_ping_history():
     with DATA_LOCK:

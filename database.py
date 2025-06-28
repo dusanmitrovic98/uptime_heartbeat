@@ -148,6 +148,13 @@ class DataAccessLayer:
         self._clear_cache(collection, query)
         return result.modified_count > 0
     
+    async def replace_all(self, collection: str, data: list):
+        """Replace all documents in a collection"""
+        await self.connect()
+        await self.db[collection].delete_many({})
+        if data:
+            await self.db[collection].insert_many(data)
+    
     # Helper methods
     def _process_data(self, data: dict, encrypt: bool = False, decrypt: bool = False) -> dict:
         """Handle encryption/decryption of sensitive fields"""

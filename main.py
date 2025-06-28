@@ -191,4 +191,4 @@ if __name__ == "__main__":
         port = 5000
     # Always start the ping thread (no reloader)
     Thread(target=ping_loop, daemon=True).start()
-    socketio.run(app, debug=True, use_reloader=False, port=port)
+    socketio.run(app, debug=True, use_reloader=False, host="0.0.0.0", port=port)

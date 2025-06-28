@@ -181,7 +181,16 @@ def require_login():
 
 @app.route("/export_data")
 def export_data():
-    return send_from_directory('.', DATA_FILE, as_attachment=True)
+    # Export URLs from the database as a downloadable JSON file
+    urls = load_data()
+    response = app.response_class(
+        response=json.dumps(urls, indent=2),
+        mimetype='application/json',
+        headers={
+            'Content-Disposition': 'attachment; filename=urls.json'
+        }
+    )
+    return response
 
 if __name__ == "__main__":
     import sys
